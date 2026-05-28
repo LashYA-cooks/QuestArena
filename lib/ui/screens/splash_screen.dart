@@ -36,7 +36,11 @@ class SplashScreen extends ConsumerWidget {
             // App Name
             Text(
               'QUESTARENA',
-              style: AppTextStyles.display.copyWith(letterSpacing: 4),
+              style: AppTextStyles.display.copyWith(
+                letterSpacing: 2,
+                fontSize: 26,
+              ),
+              textAlign: TextAlign.center,
             )
                 .animate()
                 .slideY(begin: 1, end: 0, duration: 600.ms, curve: Curves.easeOut)

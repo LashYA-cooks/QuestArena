@@ -14,13 +14,13 @@ class AppTextStyles {
 
   // Display Styles (Scores, Level Up, Game Titles)
   static TextStyle display = GoogleFonts.syne(
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: FontWeight.w800,
     color: AppColors.textPrimary,
   );
 
   static TextStyle headline = GoogleFonts.syne(
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
   );
