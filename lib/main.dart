@@ -1,22 +1,23 @@
-// KEY CONCEPTS IN THIS FILE:
-// • ProviderScope: A widget that stores the state of all providers in the app.
+// WHAT THIS FILE DOES:
+// The starting point of the application.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'core/constants/colors.dart';
-import 'ui/screens/splash_screen.dart';
+import 'ui/screens/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Day 1: We wrap this in a try/catch so the app runs 
-  // even if students haven't set up Firebase yet.
+  // We try to initialize Firebase. If the student hasn't added 
+  // their google-services.json yet, this will fail, but the app won't crash.
   try {
-    // await Firebase.initializeApp();
+    await Firebase.initializeApp();
   } catch (e) {
-    debugPrint('Firebase not initialized: $e');
+    debugPrint('Firebase Initialization Error: $e');
   }
-
+  
   runApp(
     const ProviderScope(
       child: QuestArenaApp(),
@@ -35,15 +36,13 @@ class QuestArenaApp extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: AppColors.primaryBg,
-        // Using our primary purple as the seed for the theme
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.purple,
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
-      // We start with the SplashScreen
-      home: const SplashScreen(),
+      home: const AuthWrapper(),
     );
   }
 }
