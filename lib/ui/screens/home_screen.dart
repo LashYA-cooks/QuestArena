@@ -7,6 +7,7 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/text_styles.dart';
 import '../../providers/user_providers.dart';
 import 'tabs/dashboard_tab.dart';
+import 'tabs/leaderboard_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _tabs = [
     const DashboardTab(),
     const Center(child: Text('Battle Tab (Coming Soon)')),
-    const Center(child: Text('Leaderboard Tab (Coming Soon)')),
+    const LeaderboardTab(),
     const Center(child: Text('Profile Tab (Coming Soon)')),
   ];
 

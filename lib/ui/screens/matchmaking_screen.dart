@@ -10,6 +10,8 @@ import '../../providers/matchmaking_providers.dart';
 import '../../providers/user_providers.dart';
 import '../../data/models/matchmaking_model.dart';
 
+import 'lobby_screen.dart';
+
 class MatchmakingScreen extends ConsumerWidget {
   const MatchmakingScreen({super.key});
 
@@ -20,10 +22,12 @@ class MatchmakingScreen extends ConsumerWidget {
 
     // IMPORTANT: Listen for changes to navigate to the Lobby
     ref.listen(matchmakingTicketProvider, (previous, next) {
-      if (next.value?.status == 'matched') {
-        // Future: Navigator.of(context).pushReplacement(LobbyScreen)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Match Found! Entering Lobby...'), backgroundColor: AppColors.teal),
+      final ticket = next.value;
+      if (ticket != null && ticket.status == 'matched' && ticket.gameRoomId != null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => LobbyScreen(roomId: ticket.gameRoomId!),
+          ),
         );
       }
     });
