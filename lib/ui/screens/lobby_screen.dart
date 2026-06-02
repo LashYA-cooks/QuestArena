@@ -9,7 +9,6 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/text_styles.dart';
 import '../../providers/game_providers.dart';
 import '../../providers/user_providers.dart';
-
 import 'game_screen.dart';
 
 class LobbyScreen extends ConsumerStatefulWidget {
@@ -75,7 +74,7 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
                   Expanded(
                     child: Container(
                       width: double.infinity,
-                      color: AppColors.purple.withOpacity(0.1),
+                      color: AppColors.purple.withAlpha(25),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -92,7 +91,7 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
                   Expanded(
                     child: Container(
                       width: double.infinity,
-                      color: AppColors.gold.withOpacity(0.05),
+                      color: AppColors.gold.withAlpha(12),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

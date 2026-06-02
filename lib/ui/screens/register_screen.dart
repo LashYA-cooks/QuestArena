@@ -63,60 +63,63 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Create Account', style: AppTextStyles.headline),
-                Text(
-                  'Start your journey to become a champion',
-                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 40),
-                
-                CustomTextField(
-                  controller: _usernameController,
-                  hintText: 'Username',
-                  icon: Icons.person_outline,
-                  validator: (val) => val!.isEmpty ? 'Enter a username' : null,
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _emailController,
-                  hintText: 'Email Address',
-                  icon: Icons.email_outlined,
-                  validator: (val) => val!.isEmpty ? 'Enter your email' : null,
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _passwordController,
-                  hintText: 'Password',
-                  icon: Icons.lock_outline,
-                  isPassword: true,
-                  validator: (val) => val!.length < 6 ? 'Min 6 characters' : null,
-                ),
-                
-                const SizedBox(height: 32),
-                
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleRegister,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.purple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Create Account', style: AppTextStyles.headline),
+                  Text(
+                    'Start your journey to become a champion',
+                    style: AppTextStyles.bodyMd.copyWith(color: AppColors.textSecondary),
                   ),
-                  child: _isLoading 
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text('Register', style: AppTextStyles.bodyLg.copyWith(fontWeight: FontWeight.bold)),
-                ),
-              ],
+                  const SizedBox(height: 40),
+                  CustomTextField(
+                    controller: _usernameController,
+                    hintText: 'Username',
+                    icon: Icons.person_outline,
+                    validator: (val) => val!.isEmpty ? 'Enter a username' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _emailController,
+                    hintText: 'Email Address',
+                    icon: Icons.email_outlined,
+                    validator: (val) => val!.isEmpty ? 'Enter your email' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    controller: _passwordController,
+                    hintText: 'Password',
+                    icon: Icons.lock_outline,
+                    isPassword: true,
+                    validator: (val) => val!.length < 6 ? 'Min 6 characters' : null,
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _handleRegister,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.purple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text('Register', style: AppTextStyles.bodyLg.copyWith(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
