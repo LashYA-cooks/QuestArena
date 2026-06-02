@@ -32,7 +32,12 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
   Future<void> _saveProfile() async {
     final username = _usernameController.text.trim();
-    if (username.isEmpty) return;
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a username'), backgroundColor: AppColors.red),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     final currentUser = ref.read(authStateProvider).value;
@@ -62,58 +67,65 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Initialize Profile', style: AppTextStyles.headline),
-              const SizedBox(height: 8),
-              Text('Choose your warrior name and avatar', style: AppTextStyles.bodyMd.copyWith(color: AppColors.textSecondary)),
-              const SizedBox(height: 32),
-              SizedBox(
-                height: 100,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _avatars.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 16),
-                  itemBuilder: (context, index) {
-                    final isSelected = _selectedAvatar == _avatars[index];
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedAvatar = _avatars[index]),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: isSelected ? AppColors.gold : Colors.transparent, width: 3),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Initialize Profile', style: AppTextStyles.headline),
+                const SizedBox(height: 8),
+                Text('Choose your warrior name and avatar',
+                    style: AppTextStyles.bodyMd.copyWith(color: AppColors.textSecondary)),
+                const SizedBox(height: 32),
+                SizedBox(
+                  height: 100,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _avatars.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 16),
+                    itemBuilder: (context, index) {
+                      final isSelected = _selectedAvatar == _avatars[index];
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedAvatar = _avatars[index]),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: isSelected ? AppColors.gold : Colors.transparent, width: 3),
+                          ),
+                          child: CircleAvatar(radius: 40, backgroundImage: NetworkImage(_avatars[index])),
                         ),
-                        child: CircleAvatar(radius: 40, backgroundImage: NetworkImage(_avatars[index])),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              CustomTextField(
-                controller: _usernameController,
-                hintText: 'Enter Unique Username',
-                icon: Icons.person_outline,
-              ),
-              const SizedBox(height: 100),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.purple,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 32),
+                CustomTextField(
+                  controller: _usernameController,
+                  hintText: 'Enter Unique Username',
+                  icon: Icons.person_outline,
                 ),
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text('Start Adventure', style: AppTextStyles.bodyLg.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-            ],
+                const SizedBox(height: 100),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.purple,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text('Start Adventure',
+                          style: AppTextStyles.bodyLg
+                              .copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

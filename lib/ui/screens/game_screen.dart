@@ -6,7 +6,6 @@
 // • State Feedback: Changing button colors based on correct/wrong answers.
 // • Real-time Sync: Watching the opponent's score while playing.
 
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -29,6 +28,8 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   late AnimationController _timerController;
   String? _selectedAnswer;
   bool _hasAnswered = false;
+  List<String> _shuffledOptions = [];
+  int _lastQuestionIndex = -1;
 
   @override
   void initState() {
@@ -38,7 +39,6 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
       duration: const Duration(seconds: 15),
     )..reverse(from: 1.0);
 
-    // Auto-submit when timer hits zero
     _timerController.addStatusListener((status) {
       if (status == AnimationStatus.dismissed && !_hasAnswered) {
         _handleAnswerSelection("TIMEOUT");
@@ -50,6 +50,22 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   void dispose() {
     _timerController.dispose();
     super.dispose();
+  }
+
+  // Prepares the options list once per question to avoid shuffling on every rebuild
+  void _prepareOptions(GameRoomModel room) {
+    if (_lastQuestionIndex != room.currentQuestionIndex) {
+      final question = room.questions[room.currentQuestionIndex];
+      _shuffledOptions = List<String>.from(question['incorrect_answers'])
+        ..add(question['correct_answer'])
+        ..shuffle();
+      _lastQuestionIndex = room.currentQuestionIndex;
+      
+      // Reset state for new question
+      _hasAnswered = false;
+      _selectedAnswer = null;
+      _timerController.reverse(from: 1.0);
+    }
   }
 
   void _handleAnswerSelection(String answer) async {
@@ -69,7 +85,6 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
     final question = room.questions[room.currentQuestionIndex];
     final isCorrect = answer == question['correct_answer'];
 
-    // Calculate score: 10 base + speed bonus
     int score = 0;
     if (isCorrect) {
       score = 10 + (_timerController.value * 5).toInt();
@@ -88,7 +103,6 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     final roomAsync = ref.watch(gameRoomProvider(widget.roomId));
 
-    // LISTEN for game finished status
     ref.listen(gameRoomProvider(widget.roomId), (prev, next) {
       if (next.value?.status == 'finished') {
         Navigator.of(context).pushReplacement(
@@ -97,8 +111,6 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
       }
     });
 
-    final user = ref.watch(currentUserProvider).value;
-
     return Scaffold(
       body: roomAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -106,15 +118,15 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
         data: (room) {
           if (room == null) return const Center(child: Text('Room Error'));
 
+          // Ensure options are ready and timer is reset for the current question
+          _prepareOptions(room);
           final question = room.questions[room.currentQuestionIndex];
-          final options = List<String>.from(question['incorrect_answers'])..add(question['correct_answer'])..shuffle();
 
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  // Header: Scores & Progress
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -131,10 +143,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 40),
-
-                  // Timer Bar
                   AnimatedBuilder(
                     animation: _timerController,
                     builder: (context, child) => LinearProgressIndicator(
@@ -144,20 +153,14 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                       minHeight: 10,
                     ),
                   ),
-
                   const Spacer(),
-
-                  // Question Text
                   Text(
                     question['question'],
                     style: AppTextStyles.headline,
                     textAlign: TextAlign.center,
                   ).animate().fadeIn().scale(),
-
                   const Spacer(),
-
-                  // Answer Buttons
-                  ...options.map((option) => Padding(
+                  ..._shuffledOptions.map((option) => Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: _AnswerButton(
                       text: option,
@@ -167,7 +170,6 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                       onTap: () => _handleAnswerSelection(option),
                     ),
                   )),
-                  
                   if (_hasAnswered)
                     Text(
                       'Waiting for opponent...',

@@ -16,11 +16,11 @@ class AuthRepository {
       final credential = await _service.signIn(email, password);
       return Success(credential.user);
     } on FirebaseAuthException catch (e) {
-      // Logic for students: Log the code so we know exactly why it failed
       print('Firebase Auth Error Code: ${e.code}');
       return Failure(AuthError(_mapFirebaseError(e.code)));
     } catch (e) {
-      return const Failure(UnknownError());
+      print('Generic Auth Error: $e');
+      return Failure(UnknownError(e.toString()));
     }
   }
 
@@ -32,7 +32,8 @@ class AuthRepository {
       print('Firebase Auth Error Code: ${e.code}');
       return Failure(AuthError(_mapFirebaseError(e.code)));
     } catch (e) {
-      return const Failure(UnknownError());
+      print('Generic Auth Error: $e');
+      return Failure(UnknownError(e.toString()));
     }
   }
 
