@@ -7,14 +7,17 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/user_providers.dart';
 import '../../../providers/auth_providers.dart';
-
+import 'edit_profile_screen.dart';
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider).value;
     if (user == null) return const Center(child: CircularProgressIndicator());
+
+    final totalMatches = user.totalWins + user.totalLosses;
 
     // List of all possible achievements to show "Locked" ones
     final allAchievements = [
@@ -40,11 +43,148 @@ class ProfileTab extends ConsumerWidget {
         child: Column(
           children: [
             // Header
-            CircleAvatar(radius: 50, backgroundImage: NetworkImage(user.avatarUrl ?? '')),
+            CircleAvatar(radius: 50,
+                backgroundImage:
+                NetworkImage(user.avatarUrl ?? '')
+            ),
             const SizedBox(height: 16),
-            Text(user.username, style: AppTextStyles.headline),
-            Text(user.rank, style: AppTextStyles.label.copyWith(color: AppColors.gold)),
-            
+
+            Column(
+              children: [
+                Text(
+                  user.username,
+                  style: AppTextStyles.headline,
+                ),
+
+                Text(
+                  user.rank,
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.gold,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const EditProfileScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Edit Profile'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.purple,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF1B1B30),
+                    Color(0xFF131325),
+                  ],
+                ),
+
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.gold.withOpacity(0.3),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ProfileInfoCard(
+                          title: 'RANK',
+                          value: user.rank,
+                          icon: Icons.workspace_premium,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ProfileInfoCard(
+                          title: 'COINS',
+                          value: '${user.coins}',
+                          icon: Icons.monetization_on,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ProfileInfoCard(
+                          title: 'MATCHES',
+                          value: '$totalMatches',
+                          icon: Icons.sports_esports,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ProfileInfoCard(
+                          title: 'LEVEL',
+                          value: '${user.level}',
+                          icon: Icons.trending_up,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'XP PROGRESS',
+                      style: AppTextStyles.label,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: user.xp / user.xpToNextLevel,
+                      minHeight: 10,
+                      backgroundColor: AppColors.surface,
+                      color: AppColors.gold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    '${user.xp}/${user.xpToNextLevel} XP',
+                    style: AppTextStyles.label,
+                  ),
+                ],
+              ),
+            ),
+
+
+
+
+
+
+
             const SizedBox(height: 32),
             
             // Achievement Grid
@@ -67,7 +207,19 @@ class ProfileTab extends ConsumerWidget {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isUnlocked ? AppColors.cardBg : AppColors.cardBg.withOpacity(0.3),
+
+                    gradient: isUnlocked
+                        ? const LinearGradient(
+                      colors: [
+                        Color(0xFF1B1B30),
+                        Color(0xFF131325),
+                      ],
+                    )
+                        : null,
+                    color: isUnlocked
+                        ? null
+                        : AppColors.cardBg.withOpacity(0.3),
+
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: isUnlocked ? AppColors.gold : AppColors.surface),
                   ),
@@ -93,6 +245,48 @@ class ProfileTab extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+class _ProfileInfoCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+
+  const _ProfileInfoCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.surface,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: AppColors.gold,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTextStyles.headline,
+          ),
+          Text(
+            title,
+            style: AppTextStyles.label,
+          ),
+        ],
       ),
     );
   }
