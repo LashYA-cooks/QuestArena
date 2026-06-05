@@ -87,6 +87,34 @@ class GameRepository {
         '$playerKey.score': currentScore + scoreIncrement,
         '$playerKey.answers': currentAnswers,
       });
+
+      // Check if both players have finished the current question
+      final updatedSnapshot = await transaction.get(roomRef);
+      final p1Answers = List<String>.from(updatedSnapshot.get('player1.answers') ?? []);
+      final p2Answers = List<String>.from(updatedSnapshot.get('player2.answers') ?? []);
+      final currentIdx = updatedSnapshot.get('currentQuestionIndex') ?? 0;
+      final questions = List<dynamic>.from(updatedSnapshot.get('questions') ?? []);
+
+      // If both players have answered the current question
+      if (p1Answers.length > currentIdx && p2Answers.length > currentIdx) {
+        if (currentIdx + 1 < questions.length) {
+          // Move to next question
+          transaction.update(roomRef, {'currentQuestionIndex': currentIdx + 1});
+        } else {
+          // Game Finished!
+          final p1Score = updatedSnapshot.get('player1.score') ?? 0;
+          final p2Score = updatedSnapshot.get('player2.score') ?? 0;
+          
+          String winnerId = 'draw';
+          if (p1Score > p2Score) winnerId = updatedSnapshot.get('player1.uid');
+          if (p2Score > p1Score) winnerId = updatedSnapshot.get('player2.uid');
+
+          transaction.update(roomRef, {
+            'status': 'finished',
+            'winnerId': winnerId,
+          });
+        }
+      }
     });
   }
 
