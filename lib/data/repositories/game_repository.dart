@@ -2,6 +2,7 @@
 // Manages the real-time state of a specific game session.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/utils/game_utils.dart';
 import '../models/game_room_model.dart';
 
 class GameRepository {
@@ -17,7 +18,7 @@ class GameRepository {
       'player1': {...player1Data, 'isReady': false, 'score': 0, 'answers': []},
       'player2': null,
       'createdAt': FieldValue.serverTimestamp(),
-      'questions': [], // In a real app, a Cloud Function would populate this
+      'questions': GameUtils.getMockQuestions(), 
     });
     return roomId;
   }

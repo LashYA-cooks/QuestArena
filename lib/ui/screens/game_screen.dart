@@ -117,6 +117,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
         error: (e, s) => Center(child: Text('Error: $e')),
         data: (room) {
           if (room == null) return const Center(child: Text('Room Error'));
+          if (room.questions.isEmpty) return const Center(child: Text('Waiting for questions...'));
 
           // Ensure options are ready and timer is reset for the current question
           _prepareOptions(room);
@@ -135,7 +136,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                         score: room.player1['score'] ?? 0, 
                         isLeft: true
                       ),
-                      Text('${room.currentQuestionIndex + 1}/10', style: AppTextStyles.label),
+                      Text('${room.currentQuestionIndex + 1}/${room.questions.length}', style: AppTextStyles.label),
                       _PlayerScore(
                         name: room.player2?['username'] ?? 'Opponent', 
                         score: room.player2?['score'] ?? 0,

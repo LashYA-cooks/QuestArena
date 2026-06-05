@@ -2,6 +2,7 @@
 // Manages the player's presence in the matchmaking queue.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/utils/game_utils.dart';
 import '../models/matchmaking_model.dart';
 import '../services/firestore_service.dart';
 
@@ -39,7 +40,7 @@ class MatchmakingRepository {
         'player1': {...player1Data, 'isReady': false, 'score': 0, 'answers': []},
         'player2': {...player2Data, 'isReady': false, 'score': 0, 'answers': []},
         'createdAt': FieldValue.serverTimestamp(),
-        'questions': [], 
+        'questions': GameUtils.getMockQuestions(),
       });
 
       // 4. Update both tickets to 'matched'
