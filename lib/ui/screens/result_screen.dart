@@ -53,34 +53,35 @@ class ResultScreen extends ConsumerWidget {
           ),
           
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Animation Placeholder/Lottie
                   SizedBox(
-                    height: 200,
+                    height: 140,
                     child: isWinner 
-                      ? const Icon(Icons.emoji_events_rounded, size: 120, color: AppColors.gold)
-                      : const Icon(Icons.sentiment_very_dissatisfied_rounded, size: 120, color: AppColors.red),
+                      ? const Icon(Icons.emoji_events_rounded, size: 100, color: AppColors.gold)
+                      : const Icon(Icons.sentiment_very_dissatisfied_rounded, size: 100, color: AppColors.red),
                   ).animate().scale(duration: 800.ms, curve: Curves.elasticOut),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   Text(
                     isDraw ? "IT'S A DRAW!" : (isWinner ? 'VICTORY!' : 'DEFEAT'),
                     style: AppTextStyles.display.copyWith(
-                      fontSize: 48,
+                      fontSize: 36,
                       color: isWinner ? AppColors.teal : AppColors.red,
                     ),
+                    textAlign: TextAlign.center,
                   ).animate().slideY(begin: 0.5, end: 0),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
 
                   // Score Summary Card
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: AppColors.cardBg,
                       borderRadius: BorderRadius.circular(24),
@@ -89,13 +90,13 @@ class ResultScreen extends ConsumerWidget {
                     child: Column(
                       children: [
                         _ResultRow(label: 'YOUR SCORE', value: '$myScore', color: AppColors.gold),
-                        const Divider(color: AppColors.surface, height: 32),
+                        const Divider(color: AppColors.surface, height: 24),
                         _ResultRow(label: 'OPPONENT', value: '$opponentScore', color: AppColors.textSecondary),
                       ],
                     ),
                   ).animate().fadeIn(delay: 400.ms),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
                   // Rewards Section
                   Row(
@@ -116,7 +117,7 @@ class ResultScreen extends ConsumerWidget {
                     ],
                   ).animate().fadeIn(delay: 600.ms),
 
-                  const Spacer(),
+                  const SizedBox(height: 40),
 
                   // Action Buttons
                   ElevatedButton(
