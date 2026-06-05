@@ -52,7 +52,9 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
     super.dispose();
   }
 
-  // Prepares the options list once per question to avoid shuffling on every rebuild
+  int _processedIndex = -1;
+
+  // Prepares the options list once per question
   void _prepareOptions(GameRoomModel room) {
     if (_lastQuestionIndex != room.currentQuestionIndex) {
       final question = room.questions[room.currentQuestionIndex];
@@ -60,11 +62,19 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
         ..add(question['correct_answer'])
         ..shuffle();
       _lastQuestionIndex = room.currentQuestionIndex;
-      
-      // Reset state for new question
-      _hasAnswered = false;
-      _selectedAnswer = null;
-      _timerController.reverse(from: 1.0);
+    }
+
+    if (_processedIndex != room.currentQuestionIndex) {
+      _processedIndex = room.currentQuestionIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _hasAnswered = false;
+            _selectedAnswer = null;
+          });
+          _timerController.reverse(from: 1.0);
+        }
+      });
     }
   }
 
@@ -151,13 +161,17 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                       _PlayerScore(
                         name: room.player1['username'], 
                         score: room.player1['score'] ?? 0, 
-                        isLeft: true
+                        isLeft: true,
+                        timer: _timerController,
+                        hasAnswered: (room.player1['answers'] as List).length > room.currentQuestionIndex,
                       ),
                       Text('${room.currentQuestionIndex + 1}/${room.questions.length}', style: AppTextStyles.label),
                       _PlayerScore(
                         name: room.player2?['username'] ?? 'Opponent', 
                         score: room.player2?['score'] ?? 0,
-                        isLeft: false
+                        isLeft: false,
+                        timer: _timerController,
+                        hasAnswered: (room.player2?['answers'] as List? ?? []).length > room.currentQuestionIndex,
                       ),
                     ],
                   ),
@@ -207,15 +221,42 @@ class _PlayerScore extends StatelessWidget {
   final String name;
   final int score;
   final bool isLeft;
-  const _PlayerScore({required this.name, required this.score, required this.isLeft});
+  final AnimationController timer;
+  final bool hasAnswered;
+
+  const _PlayerScore({
+    required this.name, 
+    required this.score, 
+    required this.isLeft,
+    required this.timer,
+    required this.hasAnswered,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
       children: [
-        Text(name, style: AppTextStyles.label),
-        Text('$score', style: AppTextStyles.headline.copyWith(color: AppColors.gold)),
+        Text(name, style: AppTextStyles.label.copyWith(
+          color: hasAnswered ? AppColors.teal : AppColors.textSecondary,
+        )),
+        Text('$score', style: AppTextStyles.headline.copyWith(
+          color: hasAnswered ? AppColors.teal : AppColors.gold,
+          fontSize: 20,
+        )),
+        const SizedBox(height: 4),
+        SizedBox(
+          width: 60,
+          child: AnimatedBuilder(
+            animation: timer,
+            builder: (context, child) => LinearProgressIndicator(
+              value: hasAnswered ? 0 : timer.value,
+              backgroundColor: AppColors.surface,
+              color: hasAnswered ? AppColors.teal : (timer.value < 0.3 ? AppColors.red : AppColors.purple),
+              minHeight: 3,
+            ),
+          ),
+        ),
       ],
     );
   }

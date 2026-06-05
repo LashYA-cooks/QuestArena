@@ -81,33 +81,37 @@ class GameRepository {
       final currentScore = snapshot.get('$playerKey.score') ?? 0;
       final currentAnswers = List<String>.from(snapshot.get('$playerKey.answers') ?? []);
       
+      // Add the new answer to our local list
       currentAnswers.add(answer);
-      
+      final newScore = currentScore + scoreIncrement;
+
+      // Update the current player's data
       transaction.update(roomRef, {
-        '$playerKey.score': currentScore + scoreIncrement,
+        '$playerKey.score': newScore,
         '$playerKey.answers': currentAnswers,
       });
 
-      // Check if both players have finished the current question
-      final updatedSnapshot = await transaction.get(roomRef);
-      final p1Answers = List<String>.from(updatedSnapshot.get('player1.answers') ?? []);
-      final p2Answers = List<String>.from(updatedSnapshot.get('player2.answers') ?? []);
-      final currentIdx = updatedSnapshot.get('currentQuestionIndex') ?? 0;
-      final questions = List<dynamic>.from(updatedSnapshot.get('questions') ?? []);
+      // Now check if both players have answered the current question
+      // We use the data from the snapshot and our local update for the current player
+      final p1Answers = playerNumber == 1 ? currentAnswers : List<String>.from(snapshot.get('player1.answers') ?? []);
+      final p2Answers = playerNumber == 2 ? currentAnswers : List<String>.from(snapshot.get('player2.answers') ?? []);
+      
+      final currentIdx = snapshot.get('currentQuestionIndex') ?? 0;
+      final questions = List<dynamic>.from(snapshot.get('questions') ?? []);
 
-      // If both players have answered the current question
+      // If both players have answered up to the current index
       if (p1Answers.length > currentIdx && p2Answers.length > currentIdx) {
         if (currentIdx + 1 < questions.length) {
           // Move to next question
           transaction.update(roomRef, {'currentQuestionIndex': currentIdx + 1});
         } else {
           // Game Finished!
-          final p1Score = updatedSnapshot.get('player1.score') ?? 0;
-          final p2Score = updatedSnapshot.get('player2.score') ?? 0;
+          final p1Score = playerNumber == 1 ? newScore : (snapshot.get('player1.score') ?? 0);
+          final p2Score = playerNumber == 2 ? newScore : (snapshot.get('player2.score') ?? 0);
           
           String winnerId = 'draw';
-          if (p1Score > p2Score) winnerId = updatedSnapshot.get('player1.uid');
-          if (p2Score > p1Score) winnerId = updatedSnapshot.get('player2.uid');
+          if (p1Score > p2Score) winnerId = snapshot.get('player1.uid');
+          if (p2Score > p1Score) winnerId = snapshot.get('player2.uid');
 
           transaction.update(roomRef, {
             'status': 'finished',
