@@ -1,6 +1,5 @@
 // WHAT THIS FILE DOES:
 // Manages player profile data logic with detailed error reporting.
-
 import '../../core/errors/app_error.dart';
 import '../../core/errors/result.dart';
 import '../models/user_model.dart';
