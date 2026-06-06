@@ -21,6 +21,12 @@ class FirestoreService {
     return await _db.doc(path).get();
   }
 
+  // Delete a document
+  Future<void> deleteData(String path) async {
+    final reference = _db.doc(path);
+    await reference.delete();
+  }
+
   // Check if a username already exists
   Future<bool> isUsernameAvailable(String username) async {
     try {
@@ -32,7 +38,6 @@ class FirestoreService {
       return query.docs.isEmpty;
     } catch (e) {
       // If rules block this, we'll assume it's available to let the user proceed
-      print('Username check blocked by rules: $e');
       return true;
     }
   }

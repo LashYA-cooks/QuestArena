@@ -30,4 +30,17 @@ class LeaderboardRepository {
       return Failure(DatabaseError(e.toString()));
     }
   }
+
+  Stream<List<LeaderboardModel>> watchTopPlayers() {
+    return _db
+        .collection('users')
+        .orderBy('xp', descending: true)
+        .limit(100)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => LeaderboardModel.fromJson(doc.data()))
+          .toList();
+    });
+  }
 }

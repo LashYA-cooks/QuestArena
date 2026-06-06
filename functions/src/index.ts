@@ -1,4 +1,4 @@
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import axios from "axios";
 
@@ -43,5 +43,80 @@ export const onRoomCreated = onDocumentCreated("gameRooms/{roomId}",
       console.log(`Populated questions for room: ${event.params.roomId}`);
     } catch (error) {
       console.error("Error fetching questions:", error);
+    }
+  });
+
+/**
+ * Handles rewards and stats updates when a game finishes.
+ */
+export const onGameFinished = onDocumentUpdated("gameRooms/{roomId}",
+  async (event) => {
+    const newData = event.data?.after.data();
+    const oldData = event.data?.before.data();
+
+    if (!newData || !oldData) return;
+
+    // Only trigger if status changed to 'finished'
+    if (newData.status === "finished" && oldData.status !== "finished") {
+      const winnerId = newData.winnerId;
+      const p1Uid = newData.player1.uid;
+      const p2Uid = newData.player2.uid;
+
+      const players = [
+        {uid: p1Uid, isWinner: winnerId === p1Uid},
+        {uid: p2Uid, isWinner: winnerId === p2Uid},
+      ];
+
+      for (const p of players) {
+        const userRef = admin.firestore().collection("users").doc(p.uid);
+
+        await admin.firestore().runTransaction(async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists) return;
+
+          const data = userDoc.data()!;
+          let xp = data.xp || 0;
+          let level = data.level || 1;
+          let coins = data.coins || 0;
+          let wins = data.totalWins || 0;
+          let losses = data.totalLosses || 0;
+
+          // Reward amounts
+          const xpGained = p.isWinner ? 50 : 15;
+          const coinsGained = p.isWinner ? 20 : 5;
+
+          xp += xpGained;
+          coins += coinsGained;
+          if (p.isWinner) wins++;
+          else losses++;
+
+          // Leveling Logic (100 * level XP required)
+          let xpToNext = 100 * level;
+          while (xp >= xpToNext) {
+            xp -= xpToNext;
+            level++;
+            xpToNext = 100 * level;
+          }
+
+          // Rank Logic
+          let rank = "Bronze";
+          const totalPoints = xp + (level * 1000);
+          if (totalPoints >= 10000) rank = "Diamond";
+          else if (totalPoints >= 4000) rank = "Platinum";
+          else if (totalPoints >= 1500) rank = "Gold";
+          else if (totalPoints >= 500) rank = "Silver";
+
+          transaction.update(userRef, {
+            xp,
+            level,
+            xpToNextLevel: xpToNext,
+            coins,
+            totalWins: wins,
+            totalLosses: losses,
+            rank,
+          });
+        });
+      }
+      console.log(`Rewards processed for room: ${event.params.roomId}`);
     }
   });

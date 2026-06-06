@@ -34,26 +34,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
 
     if (mounted) {
+      setState(() => _isLoading = false);
+      
       if (result case Success()) {
-        // If registration is successful, we wait a moment for Firebase to sync
-        // then the AuthWrapper will automatically move the user forward.
-        setState(() => _isLoading = false);
+        // Pop back to the LoginScreen which is being replaced by AuthWrapper
         Navigator.of(context).pop();
         return;
       }
-
-      setState(() => _isLoading = false);
       
       if (result case Failure(error: final e)) {
         // Handle specific "already exists" case silently since we navigate anyway
-        if (e.message.contains('email-already-in-use')) {
+        if (e.message.contains('already exists')) {
            Navigator.of(context).pop();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Auth Error: ${e.message}'), 
+              content: Text(e.message), 
               backgroundColor: AppColors.red,
-              duration: const Duration(seconds: 5),
             ),
           );
         }

@@ -16,11 +16,18 @@ class AuthRepository {
       final credential = await _service.signIn(email, password);
       return Success(credential.user);
     } on FirebaseAuthException catch (e) {
+      // If we already have a user despite the error, treat as success
+      if (FirebaseAuth.instance.currentUser != null) {
+        return Success(FirebaseAuth.instance.currentUser);
+      }
       print('Firebase Auth Error Code: ${e.code}');
       return Failure(AuthError(_mapFirebaseError(e.code)));
     } catch (e) {
+      if (FirebaseAuth.instance.currentUser != null) {
+        return Success(FirebaseAuth.instance.currentUser);
+      }
       print('Generic Auth Error: $e');
-      return Failure(UnknownError(e.toString()));
+      return Failure(UnknownError('Connection error. Please check your network.'));
     }
   }
 
@@ -29,15 +36,35 @@ class AuthRepository {
       final credential = await _service.signUp(email, password);
       return Success(credential.user);
     } on FirebaseAuthException catch (e) {
+      if (FirebaseAuth.instance.currentUser != null) {
+        return Success(FirebaseAuth.instance.currentUser);
+      }
       print('Firebase Auth Error Code: ${e.code}');
       return Failure(AuthError(_mapFirebaseError(e.code)));
     } catch (e) {
+      if (FirebaseAuth.instance.currentUser != null) {
+        return Success(FirebaseAuth.instance.currentUser);
+      }
       print('Generic Auth Error: $e');
-      return Failure(UnknownError(e.toString()));
+      return Failure(UnknownError('Failed to create account. Please try again.'));
     }
   }
 
   Future<void> logout() => _service.signOut();
+
+  Future<Result<void>> deleteAccount() async {
+    try {
+      await _service.deleteUser();
+      return const Success(null);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return const Failure(AuthError('Please log out and log back in to delete your account.'));
+      }
+      return Failure(AuthError(_mapFirebaseError(e.code)));
+    } catch (e) {
+      return Failure(UnknownError(e.toString()));
+    }
+  }
 
   String _mapFirebaseError(String code) {
     switch (code) {

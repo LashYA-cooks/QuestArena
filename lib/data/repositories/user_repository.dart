@@ -1,6 +1,7 @@
 // WHAT THIS FILE DOES:
 // Manages player profile data logic with detailed error reporting.
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/errors/result.dart';
 import '../models/user_model.dart';
@@ -26,8 +27,6 @@ class UserRepository {
       );
       return const Success(null);
     } catch (e) {
-      // LOG THE ACTUAL ERROR TO TERMINAL
-      print('Firestore Error: $e');
       return Failure(DatabaseError(e.toString()));
     }
   }
@@ -40,8 +39,92 @@ class UserRepository {
       }
       return const Failure(DatabaseError("User profile not found."));
     } catch (e) {
-      print('Firestore Error: $e');
       return Failure(DatabaseError(e.toString()));
     }
+  }
+
+  Stream<UserModel?> watchUserProfile(String uid) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists || doc.data() == null) return null;
+      return UserModel.fromJson(doc.data()!);
+    });
+  }
+
+  Future<void> deleteUserProfile(String uid) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+  }
+
+  Future<void> updateUserStats({
+    required String uid,
+    required int xpGained,
+    required int coinsGained,
+    required bool isWin,
+  }) async {
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userRef);
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data()!;
+      int currentXp = data['xp'] ?? 0;
+      int currentLevel = data['level'] ?? 1;
+      int currentCoins = data['coins'] ?? 0;
+      int wins = data['totalWins'] ?? 0;
+      int losses = data['totalLosses'] ?? 0;
+
+      // Update XP and Coins
+      currentXp += xpGained;
+      currentCoins += coinsGained;
+      if (isWin) {
+        wins++;
+      } else if (xpGained > 0) { // If it was a draw or loss but they played
+        losses++;
+      }
+
+      // Check for Level Up
+      int xpToNext = 100 * currentLevel;
+      while (currentXp >= xpToNext) {
+        currentXp -= xpToNext;
+        currentLevel++;
+        xpToNext = 100 * currentLevel;
+      }
+
+      // Calculate Rank
+      String rank = 'Bronze';
+      if (currentXp + (currentLevel * 1000) >= 10000) {
+        rank = 'Diamond';
+      } else if (currentXp + (currentLevel * 1000) >= 4000) {
+        rank = 'Platinum';
+      } else if (currentXp + (currentLevel * 1000) >= 1500) {
+        rank = 'Gold';
+      } else if (currentXp + (currentLevel * 1000) >= 500) {
+        rank = 'Silver';
+      }
+
+      // Achievements Logic
+      final achievements = List<String>.from(data['achievements'] ?? []);
+      if (isWin && !achievements.contains('first_win')) {
+        achievements.add('first_win');
+      }
+      if (wins >= 10 && !achievements.contains('veteran')) {
+        achievements.add('veteran');
+      }
+
+      transaction.update(userRef, {
+        'xp': currentXp,
+        'level': currentLevel,
+        'xpToNextLevel': xpToNext,
+        'coins': currentCoins,
+        'totalWins': wins,
+        'totalLosses': losses,
+        'rank': rank,
+        'achievements': achievements,
+      });
+    });
   }
 }

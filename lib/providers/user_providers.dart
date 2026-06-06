@@ -15,15 +15,12 @@ final userRepositoryProvider = Provider((ref) {
   return UserRepository(service);
 });
 
-final currentUserProvider = FutureProvider<UserModel?>((ref) async {
+final currentUserProvider = StreamProvider<UserModel?>((ref) {
   final authState = ref.watch(authStateProvider).value;
-  if (authState == null) return null;
+  if (authState == null) return Stream.value(null);
 
   final repo = ref.watch(userRepositoryProvider);
-  final result = await repo.getUserProfile(authState.uid);
-  
-  return switch (result) {
-    Success(data: final profile) => profile,
-    Failure() => null,
-  };
+  return repo.watchUserProfile(authState.uid).handleError((error) {
+    print('User Stream Error: $error');
+  });
 });

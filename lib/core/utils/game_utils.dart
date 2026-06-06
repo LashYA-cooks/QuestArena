@@ -4,6 +4,22 @@
 import 'dart:math';
 
 class GameUtils {
+  // Decodes common HTML entities from the Open Trivia Database
+  static String decodeHtmlEntities(String text) {
+    return text
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#039;', "'")
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&rsquo;', "'")
+        .replaceAll('&lsquo;', "'")
+        .replaceAll('&ldquo;', '"')
+        .replaceAll('&rdquo;', '"')
+        .replaceAll('&hellip;', '...')
+        .replaceAll('&deg;', '°');
+  }
+
   // Generates a random 6-character uppercase alphanumeric code
   static String generateRoomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars like O, 0, I, 1

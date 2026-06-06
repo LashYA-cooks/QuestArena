@@ -14,6 +14,7 @@ import '../../core/constants/text_styles.dart';
 import '../../providers/game_providers.dart';
 import '../../providers/user_providers.dart';
 import '../../data/models/game_room_model.dart';
+import '../../core/utils/game_utils.dart';
 import 'result_screen.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
@@ -151,61 +152,66 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
           final question = room.questions[room.currentQuestionIndex];
 
           return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _PlayerScore(
-                        name: room.player1['username'], 
-                        score: room.player1['score'] ?? 0, 
-                        isLeft: true,
-                        hasAnswered: (room.player1['answers'] as List).length > room.currentQuestionIndex,
-                      ),
-                      Text('${room.currentQuestionIndex + 1}/${room.questions.length}', style: AppTextStyles.label),
-                      _PlayerScore(
-                        name: room.player2?['username'] ?? 'Opponent', 
-                        score: room.player2?['score'] ?? 0,
-                        isLeft: false,
-                        hasAnswered: (room.player2?['answers'] as List? ?? []).length > room.currentQuestionIndex,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                  AnimatedBuilder(
-                    animation: _timerController,
-                    builder: (context, child) => LinearProgressIndicator(
-                      value: _timerController.value,
-                      backgroundColor: AppColors.surface,
-                      color: _timerController.value < 0.3 ? AppColors.red : AppColors.gold,
-                      minHeight: 10,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _PlayerScore(
+                          name: room.player1['username'], 
+                          score: room.player1['score'] ?? 0, 
+                          isLeft: true,
+                          hasAnswered: (room.player1['answers'] as List).length > room.currentQuestionIndex,
+                        ),
+                        Text('${room.currentQuestionIndex + 1}/${room.questions.length}', style: AppTextStyles.label),
+                        _PlayerScore(
+                          name: room.player2?['username'] ?? 'Opponent', 
+                          score: room.player2?['score'] ?? 0,
+                          isLeft: false,
+                          hasAnswered: (room.player2?['answers'] as List? ?? []).length > room.currentQuestionIndex,
+                        ),
+                      ],
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    question['question'],
-                    style: AppTextStyles.headline,
-                    textAlign: TextAlign.center,
-                  ).animate().fadeIn().scale(),
-                  const Spacer(),
-                  ..._shuffledOptions.map((option) => Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _AnswerButton(
-                      text: option,
-                      isSelected: _selectedAnswer == option,
-                      isCorrect: _hasAnswered && option == question['correct_answer'],
-                      isWrong: _hasAnswered && _selectedAnswer == option && option != question['correct_answer'],
-                      onTap: () => _handleAnswerSelection(option),
+                    const SizedBox(height: 40),
+                    AnimatedBuilder(
+                      animation: _timerController,
+                      builder: (context, child) => LinearProgressIndicator(
+                        value: _timerController.value,
+                        backgroundColor: AppColors.surface,
+                        color: _timerController.value < 0.3 ? AppColors.red : AppColors.gold,
+                        minHeight: 10,
+                      ),
                     ),
-                  )),
-                  if (_hasAnswered)
+                    const SizedBox(height: 40),
                     Text(
-                      'Waiting for opponent...',
-                      style: AppTextStyles.label.copyWith(color: AppColors.gold),
-                    ).animate(onPlay: (c) => c.repeat()).fadeIn().fadeOut(),
-                ],
+                      GameUtils.decodeHtmlEntities(question['question']),
+                      style: AppTextStyles.headline,
+                      textAlign: TextAlign.center,
+                    ).animate().fadeIn().scale(),
+                    const SizedBox(height: 40),
+                    ..._shuffledOptions.map((option) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _AnswerButton(
+                        text: GameUtils.decodeHtmlEntities(option),
+                        isSelected: _selectedAnswer == option,
+                        isCorrect: _hasAnswered && option == question['correct_answer'],
+                        isWrong: _hasAnswered && _selectedAnswer == option && option != question['correct_answer'],
+                        onTap: () => _handleAnswerSelection(option),
+                      ),
+                    )),
+                    if (_hasAnswered)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: Text(
+                          'Waiting for opponent...',
+                          style: AppTextStyles.label.copyWith(color: AppColors.gold),
+                        ).animate(onPlay: (c) => c.repeat()).fadeIn().fadeOut(),
+                      ),
+                  ],
+                ),
               ),
             ),
           );

@@ -2,23 +2,42 @@
 // Manages the real-time state of a specific game session.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import '../../core/utils/game_utils.dart';
 import '../models/game_room_model.dart';
 
 class GameRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final _dio = Dio();
 
   // Create a private room
   Future<String> createPrivateRoom(Map<String, dynamic> player1Data, String code) async {
     final roomId = _db.collection('gameRooms').doc().id;
+    
+    // Fetch questions from client side since Cloud Functions are not available on Spark plan
+    List<Map<String, dynamic>> questions = [];
+    try {
+      final response = await _dio.get("https://opentdb.com/api.php?amount=10&type=multiple");
+      questions = (response.data['results'] as List).map((q) => {
+        'question': GameUtils.decodeHtmlEntities(q['question']),
+        'correct_answer': GameUtils.decodeHtmlEntities(q['correct_answer']),
+        'incorrect_answers': (q['incorrect_answers'] as List)
+            .map((a) => GameUtils.decodeHtmlEntities(a))
+            .toList(),
+      }).toList();
+    } catch (e) {
+      print("Trivia API Error: $e");
+      questions = GameUtils.getFallbackQuestions();
+    }
+
     await _db.collection('gameRooms').doc(roomId).set({
       'roomId': roomId,
       'roomCode': code,
-      'status': 'fetching_questions',
+      'status': 'waiting',
       'player1': {...player1Data, 'isReady': false, 'score': 0, 'answers': []},
       'player2': null,
       'createdAt': FieldValue.serverTimestamp(),
-      'questions': [], // Let Cloud Functions populate this
+      'questions': questions,
     });
     return roomId;
   }
@@ -136,6 +155,22 @@ class GameRepository {
     await _db.collection('gameRooms').doc(roomId).update({
       'questions': GameUtils.getFallbackQuestions(),
       'status': 'waiting',
+    });
+  }
+
+  // Claim match rewards
+  Future<void> claimRewards(String roomId, String userId, bool isWin) async {
+    final roomRef = _db.collection('gameRooms').doc(roomId);
+    
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(roomRef);
+      if (!snapshot.exists) return;
+
+      final claimed = List<String>.from(snapshot.get('claimedRewards') ?? []);
+      if (claimed.contains(userId)) return; // Already claimed
+
+      claimed.add(userId);
+      transaction.update(roomRef, {'claimedRewards': claimed});
     });
   }
 }

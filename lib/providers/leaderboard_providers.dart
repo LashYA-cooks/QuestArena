@@ -8,12 +8,7 @@ import '../core/errors/result.dart';
 
 final leaderboardRepositoryProvider = Provider((ref) => LeaderboardRepository());
 
-final leaderboardProvider = FutureProvider<List<LeaderboardModel>>((ref) async {
+final leaderboardProvider = StreamProvider<List<LeaderboardModel>>((ref) {
   final repo = ref.watch(leaderboardRepositoryProvider);
-  final result = await repo.getTopPlayers();
-  
-  return switch (result) {
-    Success(data: final list) => list,
-    Failure(error: final e) => throw e.message,
-  };
+  return repo.watchTopPlayers();
 });

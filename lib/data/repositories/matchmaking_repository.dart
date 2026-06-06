@@ -2,12 +2,14 @@
 // Manages the player's presence in the matchmaking queue.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import '../../core/utils/game_utils.dart';
 import '../models/matchmaking_model.dart';
 import '../services/firestore_service.dart';
 
 class MatchmakingRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final _dio = Dio();
 
   // Start searching for a match
   Future<void> startSearching(MatchmakingModel ticket) async {
@@ -39,14 +41,30 @@ class MatchmakingRepository {
       final player1Data = ticket.toJson();
       final player2Data = matchDoc.data();
 
+      // Fetch questions from client side since Cloud Functions are not available on Spark plan
+      List<Map<String, dynamic>> questions = [];
+      try {
+        final response = await _dio.get("https://opentdb.com/api.php?amount=10&type=multiple");
+        questions = (response.data['results'] as List).map((q) => {
+          'question': GameUtils.decodeHtmlEntities(q['question']),
+          'correct_answer': GameUtils.decodeHtmlEntities(q['correct_answer']),
+          'incorrect_answers': (q['incorrect_answers'] as List)
+              .map((a) => GameUtils.decodeHtmlEntities(a))
+              .toList(),
+        }).toList();
+      } catch (e) {
+        print("Trivia API Error: $e");
+        questions = GameUtils.getFallbackQuestions();
+      }
+
       await _db.collection('gameRooms').doc(roomId).set({
         'roomId': roomId,
         'roomCode': '', // Not needed for public matchmaking
-        'status': 'fetching_questions', // Intermediate status while CF runs
+        'status': 'waiting',
         'player1': {...player1Data, 'isReady': false, 'score': 0, 'answers': []},
         'player2': {...player2Data, 'isReady': false, 'score': 0, 'answers': []},
         'createdAt': FieldValue.serverTimestamp(),
-        'questions': [],
+        'questions': questions,
       });
 
       // 4. Update both tickets to 'matched'
