@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/errors/result.dart';
 import '../models/user_model.dart';
+import '../models/match_history_model.dart';
 import '../services/firestore_service.dart';
 
 class UserRepository {
@@ -125,6 +126,30 @@ class UserRepository {
         'rank': rank,
         'achievements': achievements,
       });
+    });
+  }
+
+  Future<void> saveMatchHistory(String uid, MatchHistoryModel history) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('matchHistory')
+        .doc(history.matchId)
+        .set(history.toJson());
+  }
+
+  Stream<List<MatchHistoryModel>> watchMatchHistory(String uid) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('matchHistory')
+        .orderBy('playedAt', descending: true)
+        .limit(10)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => MatchHistoryModel.fromJson(doc.data()))
+          .toList();
     });
   }
 }

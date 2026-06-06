@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/user_providers.dart';
+import '../../../data/models/match_history_model.dart';
 import '../store_screen.dart';
 import '../../../core/utils/rank_calculator.dart';
+import 'package:intl/intl.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});
@@ -107,26 +109,87 @@ class DashboardTab extends ConsumerWidget {
                 Text('RECENT HISTORY', style: AppTextStyles.label),
                 const SizedBox(height: 12),
                 
-                // Empty State since match history is not yet implemented in Firestore
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBg,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.surface, style: BorderStyle.solid),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.history_rounded, color: AppColors.textMuted, size: 32),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No match history yet.\nStart a battle to see your results!',
-                        style: AppTextStyles.label.copyWith(color: AppColors.textMuted),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                ref.watch(matchHistoryProvider).when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, s) => Text('History Error: $e'),
+                  data: (history) {
+                    if (history.isEmpty) {
+                      return Container(
+                        padding: const EdgeInsets.all(24),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.surface, style: BorderStyle.solid),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.history_rounded, color: AppColors.textMuted, size: 32),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No match history yet.\nStart a battle to see your results!',
+                              style: AppTextStyles.label.copyWith(color: AppColors.textMuted),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: history.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final item = history[index];
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.surface),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: (item.isWin ? AppColors.teal : AppColors.red).withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  item.isWin ? Icons.emoji_events_rounded : Icons.close_rounded, 
+                                  color: item.isWin ? AppColors.teal : AppColors.red,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.isWin ? 'Victory against ${item.opponentName}' : 'Defeat by ${item.opponentName}',
+                                      style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      '${DateFormat('MMM d, HH:mm').format(item.playedAt)}  •  ${item.myScore}-${item.opponentScore}',
+                                      style: AppTextStyles.label.copyWith(fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '+${item.xpGained} XP', 
+                                style: AppTextStyles.label.copyWith(color: AppColors.gold, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
             ),

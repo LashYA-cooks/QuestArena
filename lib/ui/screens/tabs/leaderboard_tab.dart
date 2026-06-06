@@ -73,7 +73,7 @@ class LeaderboardTab extends ConsumerWidget {
                               color: isMe ? AppColors.gold : AppColors.textPrimary,
                             ),
                           ),
-                          Text(player.rank, style: AppTextStyles.label.copyWith(fontSize: 10)),
+                          Text('LVL ${player.level} • ${player.rank}', style: AppTextStyles.label.copyWith(fontSize: 10)),
                         ],
                       ),
                     ),

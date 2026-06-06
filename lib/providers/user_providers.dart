@@ -6,6 +6,7 @@ import 'auth_providers.dart';
 import '../data/services/firestore_service.dart';
 import '../data/repositories/user_repository.dart';
 import '../data/models/user_model.dart';
+import '../data/models/match_history_model.dart';
 import '../core/errors/result.dart';
 
 final firestoreServiceProvider = Provider((ref) => FirestoreService());
@@ -23,4 +24,12 @@ final currentUserProvider = StreamProvider<UserModel?>((ref) {
   return repo.watchUserProfile(authState.uid).handleError((error) {
     print('User Stream Error: $error');
   });
+});
+
+final matchHistoryProvider = StreamProvider<List<MatchHistoryModel>>((ref) {
+  final authState = ref.watch(authStateProvider).value;
+  if (authState == null) return Stream.value([]);
+
+  final repo = ref.watch(userRepositoryProvider);
+  return repo.watchMatchHistory(authState.uid);
 });
