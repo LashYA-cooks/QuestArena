@@ -1,6 +1,7 @@
 // WHAT THIS FILE DOES:
 // Acts as a bridge between the raw Firebase Service and the UI.
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/errors/result.dart';
@@ -20,13 +21,13 @@ class AuthRepository {
       if (FirebaseAuth.instance.currentUser != null) {
         return Success(FirebaseAuth.instance.currentUser);
       }
-      print('Firebase Auth Error Code: ${e.code}');
+      debugPrint('Firebase Auth Error Code: ${e.code}');
       return Failure(AuthError(_mapFirebaseError(e.code)));
     } catch (e) {
       if (FirebaseAuth.instance.currentUser != null) {
         return Success(FirebaseAuth.instance.currentUser);
       }
-      print('Generic Auth Error: $e');
+      debugPrint('Generic Auth Error: $e');
       return Failure(UnknownError('Connection error. Please check your network.'));
     }
   }
@@ -39,13 +40,13 @@ class AuthRepository {
       if (FirebaseAuth.instance.currentUser != null) {
         return Success(FirebaseAuth.instance.currentUser);
       }
-      print('Firebase Auth Error Code: ${e.code}');
+      debugPrint('Firebase Auth Error Code: ${e.code}');
       return Failure(AuthError(_mapFirebaseError(e.code)));
     } catch (e) {
       if (FirebaseAuth.instance.currentUser != null) {
         return Success(FirebaseAuth.instance.currentUser);
       }
-      print('Generic Auth Error: $e');
+      debugPrint('Generic Auth Error: $e');
       return Failure(UnknownError('Failed to create account. Please try again.'));
     }
   }

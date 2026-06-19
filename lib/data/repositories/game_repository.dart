@@ -3,12 +3,15 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/game_utils.dart';
 import '../models/game_room_model.dart';
 
 class GameRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final _dio = Dio();
+  final Dio _dio;
+
+  GameRepository(this._dio);
 
   // Create a private room
   Future<String> createPrivateRoom(Map<String, dynamic> player1Data, String code) async {
@@ -17,7 +20,7 @@ class GameRepository {
     // Fetch questions from client side since Cloud Functions are not available on Spark plan
     List<Map<String, dynamic>> questions = [];
     try {
-      final response = await _dio.get("https://opentdb.com/api.php?amount=10&type=multiple");
+      final response = await _dio.get(ApiConstants.triviaUrl);
       questions = (response.data['results'] as List).map((q) => {
         'question': GameUtils.decodeHtmlEntities(q['question']),
         'correct_answer': GameUtils.decodeHtmlEntities(q['correct_answer']),

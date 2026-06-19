@@ -5,6 +5,7 @@ class LeaderboardModel {
   final String uid;
   final String username;
   final String? avatarUrl;
+  final int level;
   final int xp;
   final String rank;
 
@@ -12,6 +13,7 @@ class LeaderboardModel {
     required this.uid,
     required this.username,
     this.avatarUrl,
+    required this.level,
     required this.xp,
     required this.rank,
   });
@@ -21,6 +23,7 @@ class LeaderboardModel {
       uid: json['uid'] ?? '',
       username: json['username'] ?? '',
       avatarUrl: json['avatarUrl'],
+      level: json['level'] ?? 1,
       xp: json['xp'] ?? 0,
       rank: json['rank'] ?? 'Bronze',
     );
@@ -30,6 +33,7 @@ class LeaderboardModel {
     'uid': uid,
     'username': username,
     'avatarUrl': avatarUrl,
+    'level': level,
     'xp': xp,
     'rank': rank,
   };

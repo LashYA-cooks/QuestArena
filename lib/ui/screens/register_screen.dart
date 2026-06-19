@@ -18,7 +18,6 @@ class RegisterScreen extends ConsumerStatefulWidget {
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -78,13 +77,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     style: AppTextStyles.bodyMd.copyWith(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 40),
-                  CustomTextField(
-                    controller: _usernameController,
-                    hintText: 'Username',
-                    icon: Icons.person_outline,
-                    validator: (val) => val!.isEmpty ? 'Enter a username' : null,
-                  ),
-                  const SizedBox(height: 16),
                   CustomTextField(
                     controller: _emailController,
                     hintText: 'Email Address',

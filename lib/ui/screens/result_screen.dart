@@ -6,6 +6,7 @@
 // • Conditional Layouts: Different colors and text based on whether the user won or lost.
 // • Navigation: Returning the user back to the main Hub (HomeScreen).
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
@@ -15,6 +16,7 @@ import '../../core/constants/text_styles.dart';
 import '../../providers/user_providers.dart';
 import '../../providers/game_providers.dart';
 import '../../data/models/game_room_model.dart';
+import '../../data/models/match_history_model.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
   final GameRoomModel room;
@@ -40,37 +42,55 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     try {
       final currentUser = ref.read(currentUserProvider).value;
       if (currentUser == null) {
-        // If user is null, wait a bit and try again (stream might be initializing)
         await Future.delayed(const Duration(seconds: 1));
         _handleRewards();
         return;
       }
 
-      // Check if Firestore already says we claimed it
-      if (widget.room.claimedRewards.contains(currentUser.uid)) {
-        if (mounted) setState(() => _rewardsClaimed = true);
-        return;
-      }
-
       final isWinner = widget.room.winnerId == currentUser.uid;
-      
-      // 1. Update User Stats in Firestore
-      await ref.read(userRepositoryProvider).updateUserStats(
-        uid: currentUser.uid,
-        xpGained: isWinner ? 50 : 15,
-        coinsGained: isWinner ? 20 : 5,
+
+      // 1. Calculate History first so it's ready
+      final myScore = currentUser.uid == widget.room.player1['uid'] 
+          ? widget.room.player1['score'] 
+          : (widget.room.player2?['score'] ?? 0);
+          
+      final opponentScore = currentUser.uid == widget.room.player1['uid'] 
+          ? (widget.room.player2?['score'] ?? 0)
+          : widget.room.player1['score'];
+          
+      final opponentName = currentUser.uid == widget.room.player1['uid']
+          ? (widget.room.player2?['username'] ?? 'Opponent')
+          : widget.room.player1['username'];
+
+      final history = MatchHistoryModel(
+        matchId: widget.room.roomId,
+        opponentName: opponentName,
         isWin: isWinner,
+        myScore: myScore,
+        opponentScore: opponentScore,
+        xpGained: isWinner ? 50 : 15,
+        playedAt: DateTime.now(),
       );
 
-      // 2. Mark as claimed in the Game Room doc
-      await ref.read(gameRepositoryProvider).claimRewards(
-        widget.room.roomId,
-        currentUser.uid,
-        isWinner,
-      );
+      // 2. Perform all updates in parallel for speed
+      await Future.wait([
+        ref.read(userRepositoryProvider).updateUserStats(
+          uid: currentUser.uid,
+          xpGained: isWinner ? 50 : 15,
+          coinsGained: isWinner ? 20 : 5,
+          isWin: isWinner,
+        ),
+        ref.read(gameRepositoryProvider).claimRewards(
+          widget.room.roomId,
+          currentUser.uid,
+          isWinner,
+        ),
+        ref.read(userRepositoryProvider).saveMatchHistory(currentUser.uid, history),
+      ]);
+      
+      debugPrint('All rewards and history saved successfully!');
     } catch (e) {
-      print('Error claiming rewards: $e');
-      // We still set to true so the user can go home even if update fails
+      debugPrint('Error claiming rewards: $e');
     } finally {
       if (mounted) {
         setState(() => _rewardsClaimed = true);

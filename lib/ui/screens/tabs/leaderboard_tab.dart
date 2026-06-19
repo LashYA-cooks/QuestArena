@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/leaderboard_providers.dart';
@@ -56,7 +57,17 @@ class LeaderboardTab extends ConsumerWidget {
                     // Avatar
                     CircleAvatar(
                       radius: 20,
-                      backgroundImage: NetworkImage(player.avatarUrl ?? ''),
+                      backgroundColor: AppColors.surface,
+                      child: ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: player.avatarUrl ?? '',
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const CircularProgressIndicator(strokeWidth: 1),
+                          errorWidget: (context, url, error) => const Icon(Icons.person, size: 20),
+                        ),
+                      ),
                     ),
                     
                     const SizedBox(width: 16),
@@ -73,7 +84,7 @@ class LeaderboardTab extends ConsumerWidget {
                               color: isMe ? AppColors.gold : AppColors.textPrimary,
                             ),
                           ),
-                          Text(player.rank, style: AppTextStyles.label.copyWith(fontSize: 10)),
+                          Text('LVL ${player.level} • ${player.rank}', style: AppTextStyles.label.copyWith(fontSize: 10)),
                         ],
                       ),
                     ),

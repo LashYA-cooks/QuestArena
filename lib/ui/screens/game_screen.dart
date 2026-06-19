@@ -1,10 +1,5 @@
 // WHAT THIS FILE DOES:
-// The core quiz screen. Handles question display, timer, and score updates.
-//
-// KEY CONCEPTS IN THIS FILE:
-// • AnimationController: Precise control over the countdown timer.
-// • State Feedback: Changing button colors based on correct/wrong answers.
-// • Real-time Sync: Watching the opponent's score while playing.
+// Optimized core quiz screen. Isolated rebuilds for maximum performance.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +26,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
   bool _hasAnswered = false;
   List<String> _shuffledOptions = [];
   int _lastQuestionIndex = -1;
+  int _processedIndex = -1;
 
   @override
   void initState() {
@@ -53,9 +49,6 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
     super.dispose();
   }
 
-  int _processedIndex = -1;
-
-  // Prepares the options list once per question
   void _prepareOptions(GameRoomModel room) {
     if (_lastQuestionIndex != room.currentQuestionIndex) {
       final question = room.questions[room.currentQuestionIndex];
@@ -112,8 +105,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
-    final roomAsync = ref.watch(gameRoomProvider(widget.roomId));
-
+    // Listen for completion to navigate away
     ref.listen(gameRoomProvider(widget.roomId), (prev, next) {
       if (next.value?.status == 'finished') {
         Navigator.of(context).pushReplacement(
@@ -122,9 +114,11 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
       }
     });
 
+    final roomAsync = ref.watch(gameRoomProvider(widget.roomId));
+
     return Scaffold(
       body: roomAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.gold)),
         error: (e, s) => Center(child: Text('Error: $e')),
         data: (room) {
           if (room == null) return const Center(child: Text('Room Error'));
@@ -147,9 +141,9 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
             );
           }
 
-          // Ensure options are ready and timer is reset for the current question
           _prepareOptions(room);
           final question = room.questions[room.currentQuestionIndex];
+          final qText = GameUtils.decodeHtmlEntities(question['question']);
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -157,6 +151,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   children: [
+                    // Header with scores
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -176,32 +171,45 @@ class _GameScreenState extends ConsumerState<GameScreen> with SingleTickerProvid
                       ],
                     ),
                     const SizedBox(height: 40),
-                    AnimatedBuilder(
-                      animation: _timerController,
-                      builder: (context, child) => LinearProgressIndicator(
-                        value: _timerController.value,
-                        backgroundColor: AppColors.surface,
-                        color: _timerController.value < 0.3 ? AppColors.red : AppColors.gold,
-                        minHeight: 10,
+                    
+                    // Timer bar
+                    RepaintBoundary(
+                      child: AnimatedBuilder(
+                        animation: _timerController,
+                        builder: (context, child) => LinearProgressIndicator(
+                          value: _timerController.value,
+                          backgroundColor: AppColors.surface,
+                          color: _timerController.value < 0.3 ? AppColors.red : AppColors.gold,
+                          minHeight: 10,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 40),
+
+                    // Question Text
                     Text(
-                      GameUtils.decodeHtmlEntities(question['question']),
+                      qText,
                       style: AppTextStyles.headline,
                       textAlign: TextAlign.center,
-                    ).animate().fadeIn().scale(),
+                    ).animate(key: ValueKey(room.currentQuestionIndex)).fadeIn().scale(),
+                    
                     const SizedBox(height: 40),
-                    ..._shuffledOptions.map((option) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _AnswerButton(
-                        text: GameUtils.decodeHtmlEntities(option),
-                        isSelected: _selectedAnswer == option,
-                        isCorrect: _hasAnswered && option == question['correct_answer'],
-                        isWrong: _hasAnswered && _selectedAnswer == option && option != question['correct_answer'],
-                        onTap: () => _handleAnswerSelection(option),
-                      ),
-                    )),
+
+                    // Shuffled Options
+                    ..._shuffledOptions.map((option) {
+                      final decodedOption = GameUtils.decodeHtmlEntities(option);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _AnswerButton(
+                          text: decodedOption,
+                          isSelected: _selectedAnswer == option,
+                          isCorrect: _hasAnswered && option == question['correct_answer'],
+                          isWrong: _hasAnswered && _selectedAnswer == option && option != question['correct_answer'],
+                          onTap: () => _handleAnswerSelection(option),
+                        ),
+                      );
+                    }),
+
                     if (_hasAnswered)
                       Padding(
                         padding: const EdgeInsets.only(top: 20),
@@ -268,28 +276,28 @@ class _AnswerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color borderColor = AppColors.surface;
-    Color bgColor = AppColors.cardBg;
-
-    if (isCorrect) {
-      borderColor = AppColors.teal;
-      bgColor = AppColors.teal.withOpacity(0.1);
-    } else if (isWrong) {
-      borderColor = AppColors.red;
-      bgColor = AppColors.red.withOpacity(0.1);
-    } else if (isSelected) {
-      borderColor = AppColors.purple;
-    }
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: isCorrect 
+              ? AppColors.teal.withValues(alpha: 0.1) 
+              : isWrong 
+                  ? AppColors.red.withValues(alpha: 0.1)
+                  : AppColors.cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: 2),
+          border: Border.all(
+            color: isCorrect 
+                ? AppColors.teal 
+                : isWrong 
+                    ? AppColors.red 
+                    : isSelected 
+                        ? AppColors.purple 
+                        : AppColors.surface, 
+            width: 2
+          ),
         ),
         child: Text(
           text,

@@ -6,7 +6,10 @@ import 'user_providers.dart';
 import '../data/repositories/matchmaking_repository.dart';
 import '../data/models/matchmaking_model.dart';
 
-final matchmakingRepositoryProvider = Provider((ref) => MatchmakingRepository());
+final matchmakingRepositoryProvider = Provider((ref) {
+  final dio = ref.watch(dioProvider);
+  return MatchmakingRepository(dio);
+});
 
 // This provider watches the matchmaking document in real-time
 final matchmakingTicketProvider = StreamProvider.autoDispose((ref) {

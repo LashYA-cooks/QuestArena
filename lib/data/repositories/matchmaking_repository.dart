@@ -3,13 +3,16 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/game_utils.dart';
 import '../models/matchmaking_model.dart';
 import '../services/firestore_service.dart';
 
 class MatchmakingRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final _dio = Dio();
+  final Dio _dio;
+
+  MatchmakingRepository(this._dio);
 
   // Start searching for a match
   Future<void> startSearching(MatchmakingModel ticket) async {
@@ -44,7 +47,7 @@ class MatchmakingRepository {
       // Fetch questions from client side since Cloud Functions are not available on Spark plan
       List<Map<String, dynamic>> questions = [];
       try {
-        final response = await _dio.get("https://opentdb.com/api.php?amount=10&type=multiple");
+        final response = await _dio.get(ApiConstants.triviaUrl);
         questions = (response.data['results'] as List).map((q) => {
           'question': GameUtils.decodeHtmlEntities(q['question']),
           'correct_answer': GameUtils.decodeHtmlEntities(q['correct_answer']),

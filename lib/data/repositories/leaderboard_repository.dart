@@ -17,6 +17,7 @@ class LeaderboardRepository {
     try {
       final snapshot = await _db
           .collection('users')
+          .orderBy('level', descending: true)
           .orderBy('xp', descending: true)
           .limit(100)
           .get();
@@ -34,6 +35,7 @@ class LeaderboardRepository {
   Stream<List<LeaderboardModel>> watchTopPlayers() {
     return _db
         .collection('users')
+        .orderBy('level', descending: true)
         .orderBy('xp', descending: true)
         .limit(100)
         .snapshots()

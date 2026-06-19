@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/text_styles.dart';
 import '../../providers/game_providers.dart';
@@ -78,7 +79,20 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircleAvatar(radius: 60, backgroundImage: NetworkImage(p1['avatarUrl'] ?? '')),
+                          CircleAvatar(
+                            radius: 60, 
+                            backgroundColor: AppColors.surface,
+                            child: ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: p1['avatarUrl'] ?? '',
+                                width: 120,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const CircularProgressIndicator(),
+                                errorWidget: (context, url, error) => const Icon(Icons.person, size: 50),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           Text(p1['username'], style: AppTextStyles.headline),
                           _ReadyBadge(isReady: p1['isReady'] ?? false),
@@ -110,8 +124,21 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
                               _ReadyBadge(isReady: p2['isReady'] ?? false),
                               const SizedBox(height: 16),
                               Text(p2['username'], style: AppTextStyles.headline),
-                              CircleAvatar(radius: 60, backgroundImage: NetworkImage(p2['avatarUrl'] ?? '')),
-                            ],
+                          CircleAvatar(
+                            radius: 60, 
+                            backgroundColor: AppColors.surface,
+                            child: ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: p2['avatarUrl'] ?? '',
+                                width: 120,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => const CircularProgressIndicator(),
+                                errorWidget: (context, url, error) => const Icon(Icons.person, size: 50),
+                              ),
+                            ),
+                          ),
+                        ],
                           ),
                     ),
                   ),

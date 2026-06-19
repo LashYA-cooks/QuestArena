@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/user_providers.dart';
@@ -79,7 +80,19 @@ class ProfileTab extends ConsumerWidget {
                 // Header
                 CircleAvatar(
                   radius: 50,
-                  backgroundImage: NetworkImage(user.avatarUrl ?? ''),
+                  backgroundColor: AppColors.surface,
+                  child: ClipOval(
+                    child: CachedNetworkImage(
+                      imageUrl: user.avatarUrl ?? '',
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          const CircularProgressIndicator(),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.person, size: 40),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -126,7 +139,7 @@ class ProfileTab extends ConsumerWidget {
                     ),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppColors.gold.withOpacity(0.3),
+                      color: AppColors.gold.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
@@ -222,7 +235,7 @@ class ProfileTab extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: isUnlocked
                             ? AppColors.cardBg
-                            : AppColors.cardBg.withOpacity(0.3),
+                            : AppColors.cardBg.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                             color: isUnlocked

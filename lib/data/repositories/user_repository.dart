@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/errors/result.dart';
 import '../models/user_model.dart';
+import '../models/match_history_model.dart';
 import '../services/firestore_service.dart';
 
 class UserRepository {
@@ -22,7 +23,7 @@ class UserRepository {
           DatabaseError("Username already taken."),
         );
       }
-git
+
       await _service.setData(
         path: 'users/${user.uid}',
         data: user.toJson(),
@@ -149,6 +150,33 @@ git
         'rank': rank,
         'achievements': achievements,
       });
+    });
+  }
+
+  Future<void> saveMatchHistory(String uid, MatchHistoryModel history) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('matchHistory')
+        .doc(history.matchId)
+        .set(history.toJson());
+  }
+
+  Stream<List<MatchHistoryModel>> watchMatchHistory(String uid) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('matchHistory')
+        // Temporarily removed orderBy to check if it's an index issue
+        .limit(10)
+        .snapshots()
+        .map((snapshot) {
+      final history = snapshot.docs
+          .map((doc) => MatchHistoryModel.fromJson(doc.data()))
+          .toList();
+      // Sort manually in Dart to avoid index requirements during debug
+      history.sort((a, b) => b.playedAt.compareTo(a.playedAt));
+      return history;
     });
   }
 }

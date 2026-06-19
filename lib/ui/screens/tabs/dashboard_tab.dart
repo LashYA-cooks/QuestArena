@@ -3,14 +3,16 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/user_providers.dart';
 import '../../../providers/matchmaking_providers.dart';
-import '../store_screen.dart';
-import '../matchmaking_screen.dart';
 import '../../../data/models/matchmaking_model.dart';
 import '../../../core/utils/rank_calculator.dart';
+import '../store_screen.dart';
+import '../matchmaking_screen.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});
@@ -75,17 +77,30 @@ class DashboardTab extends ConsumerWidget {
                     color: AppColors.cardBg,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: rankColor.withOpacity(0.5),
+                      color: rankColor.withValues(alpha: 0.5),
                     ),
                   ),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 35,
-                        backgroundColor: rankColor.withOpacity(0.1),
+                        backgroundColor: rankColor.withValues(alpha: 0.1),
                         child: CircleAvatar(
                           radius: 32,
-                          backgroundImage: NetworkImage(user.avatarUrl ?? ''),
+                          backgroundColor: AppColors.surface,
+                          child: ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl: user.avatarUrl ?? '',
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) =>
+                                  const CircularProgressIndicator(
+                                      strokeWidth: 2),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.person),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -196,7 +211,7 @@ class DashboardTab extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.purple.withOpacity(0.5),
+                          color: AppColors.purple.withValues(alpha: 0.5),
                           blurRadius: 30,
                           spreadRadius: 2,
                           offset: const Offset(0, 10),
@@ -211,7 +226,7 @@ class DashboardTab extends ConsumerWidget {
                           child: Icon(
                             Icons.flash_on_rounded,
                             size: 120,
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                           ),
                         ),
                         Center(
@@ -247,56 +262,108 @@ class DashboardTab extends ConsumerWidget {
 
                 const SizedBox(height: 12),
 
-                // Placeholder for match history
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 2,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          index == 0
-                              ? Icons.emoji_events_rounded
-                              : Icons.close_rounded,
-                          color: index == 0 ? AppColors.teal : AppColors.red,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                index == 0
-                                    ? 'Won against ProGamer'
-                                    : 'Lost to QuizMaster',
-                                style: AppTextStyles.bodyMd,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '2 mins ago',
-                                style: AppTextStyles.label.copyWith(
-                                  color: Colors.grey,
-                                  fontSize: 11,
+                ref.watch(matchHistoryProvider).when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, s) => Text('History Error: $e'),
+                      data: (history) {
+                        if (history.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(24),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.cardBg,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: AppColors.surface,
+                                  style: BorderStyle.solid),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.history_rounded,
+                                    color: AppColors.textMuted, size: 32),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No match history yet.\nStart a battle to see your results!',
+                                  style: AppTextStyles.label
+                                      .copyWith(color: AppColors.textMuted),
+                                  textAlign: TextAlign.center,
                                 ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: history.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final item = history[index];
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.cardBg,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.surface),
                               ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          index == 0 ? '+50 XP' : '+15 XP',
-                          style: AppTextStyles.label,
-                        ),
-                      ],
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: (item.isWin
+                                              ? AppColors.teal
+                                              : AppColors.red)
+                                          .withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      item.isWin
+                                          ? Icons.emoji_events_rounded
+                                          : Icons.close_rounded,
+                                      color: item.isWin
+                                          ? AppColors.teal
+                                          : AppColors.red,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.isWin
+                                              ? 'Victory against ${item.opponentName}'
+                                              : 'Defeat by ${item.opponentName}',
+                                          style: AppTextStyles.bodyMd.copyWith(
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          '${DateFormat('MMM d, HH:mm').format(item.playedAt)}  •  ${item.myScore}-${item.opponentScore}',
+                                          style: AppTextStyles.label
+                                              .copyWith(fontSize: 10),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    '+${item.xpGained} XP',
+                                    style: AppTextStyles.label.copyWith(
+                                        color: AppColors.gold,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -342,9 +409,10 @@ class _StatCard extends StatelessWidget {
                 color: color,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               label,
-              style: AppTextStyles.label,
+              style: AppTextStyles.label.copyWith(fontSize: 10),
             ),
           ],
         ),
