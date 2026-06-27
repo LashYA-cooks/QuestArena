@@ -23,6 +23,19 @@ class LobbyScreen extends ConsumerStatefulWidget {
 class _LobbyScreenState extends ConsumerState<LobbyScreen> {
   int _countdown = 3;
   Timer? _timer;
+  bool _isStartingGame = false;
+
+  Future<void> _enterGame() async {
+    if (_isStartingGame || !mounted) return;
+    _isStartingGame = true;
+
+    await ref.read(gameRepositoryProvider).startGame(widget.roomId);
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => GameScreen(roomId: widget.roomId)),
+    );
+  }
 
   void _startCountdown() {
     if (_timer != null) return;
@@ -33,9 +46,7 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
           _countdown--;
         } else {
           _timer?.cancel();
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => GameScreen(roomId: widget.roomId)),
-          );
+          _enterGame();
         }
       });
     });
@@ -172,10 +183,15 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
                   bottom: 40,
                   left: 40,
                   right: 40,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final isP1 = currentUser?.uid == p1['uid'];
-                      ref.read(gameRepositoryProvider).setPlayerReady(widget.roomId, isP1 ? 1 : 2);
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final isP1 = currentUser?.uid == p1['uid'];
+                      if (currentUser == null) return;
+                      ref.read(gameRepositoryProvider).setPlayerReady(
+                            widget.roomId,
+                            isP1 ? 1 : 2,
+                            currentUser.uid,
+                          );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.purple,

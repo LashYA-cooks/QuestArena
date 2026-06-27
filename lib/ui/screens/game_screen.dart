@@ -28,8 +28,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
   String? _selectedAnswer;
   bool _hasAnswered = false;
   List<String> _shuffledOptions = [];
+  List<String> _fiftyFiftyHiddenOptions = [];
   int _lastQuestionIndex = -1;
   int _processedIndex = -1;
+  bool _hasUsedFiftyFifty = false;
 
   // Arena Breaker state
   bool _showABIntro = true;
@@ -143,6 +145,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _shuffledOptions = List<String>.from(question['incorrect_answers'])
         ..add(question['correct_answer'])
         ..shuffle();
+      _fiftyFiftyHiddenOptions = [];
       _lastQuestionIndex = room.currentQuestionIndex;
     }
 
@@ -158,6 +161,33 @@ class _GameScreenState extends ConsumerState<GameScreen>
         }
       });
     }
+  }
+
+  void _useFiftyFifty(GameRoomModel room) {
+    if (_hasUsedFiftyFifty || _hasAnswered || room.questions.isEmpty) return;
+
+    final question = room.questions[room.currentQuestionIndex];
+    final correctAnswer = question['correct_answer'];
+    final wrongOptions = _shuffledOptions
+        .where((option) => option != correctAnswer)
+        .toList()
+      ..shuffle();
+
+    if (wrongOptions.length < 2) return;
+
+    setState(() {
+      _hasUsedFiftyFifty = true;
+      _fiftyFiftyHiddenOptions = wrongOptions.take(2).toList();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('50/50 used! Two wrong answers removed.'),
+        backgroundColor: AppColors.purple,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _handleAnswerSelection(String answer) async {
@@ -378,6 +408,20 @@ class _GameScreenState extends ConsumerState<GameScreen>
               ),
               const SizedBox(height: 40),
 
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _PowerupButton(
+                    label: '50/50',
+                    icon: Icons.filter_2_rounded,
+                    isUsed: _hasUsedFiftyFifty,
+                    isDisabled: _hasAnswered,
+                    onTap: () => _useFiftyFifty(room),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
               // Question Text
               Text(
                 qText,
@@ -391,7 +435,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
               const SizedBox(height: 40),
 
               // Shuffled Options
-              ..._shuffledOptions.map((option) {
+              ..._shuffledOptions
+                  .where((option) => !_fiftyFiftyHiddenOptions.contains(option))
+                  .map((option) {
                 final decodedOption =
                     GameUtils.decodeHtmlEntities(option);
                 return Padding(
@@ -547,6 +593,64 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 ).animate(onPlay: (c) => c.repeat()).fadeIn().fadeOut(),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PowerupButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isUsed;
+  final bool isDisabled;
+  final VoidCallback onTap;
+
+  const _PowerupButton({
+    required this.label,
+    required this.icon,
+    required this.isUsed,
+    required this.isDisabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = isUsed || isDisabled;
+
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: AnimatedOpacity(
+        opacity: disabled ? 0.45 : 1,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.purple.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isUsed ? AppColors.surface : AppColors.purple,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isUsed ? Icons.check_circle_rounded : icon,
+                color: isUsed ? AppColors.textMuted : AppColors.purple,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isUsed ? '$label USED' : label,
+                style: AppTextStyles.label.copyWith(
+                  color: isUsed ? AppColors.textMuted : Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

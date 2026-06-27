@@ -11,8 +11,62 @@ import '../models/game_room_model.dart';
 class GameRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final Dio _dio;
+  static const int _questionDurationSeconds = 15;
+  static const int _maxScorePerQuestion = 15;
 
   GameRepository(this._dio);
+
+  List<String> _validAnswersForQuestion(Map<String, dynamic> question) {
+    return [
+      GameUtils.decodeHtmlEntities(question['correct_answer']?.toString() ?? ''),
+      ...List<String>.from(question['incorrect_answers'] ?? [])
+          .map(GameUtils.decodeHtmlEntities),
+    ];
+  }
+
+  int _calculateVerifiedScore({
+    required bool isCorrect,
+    required int reportedScore,
+    required Timestamp? questionStartedAt,
+  }) {
+    if (!isCorrect) return 0;
+
+    // If this is an older room without timing metadata, keep compatibility but
+    // never allow a score above the legitimate per-question max.
+    if (questionStartedAt == null) {
+      return reportedScore.clamp(10, _maxScorePerQuestion);
+    }
+
+    final elapsedMs = Timestamp.now()
+        .toDate()
+        .difference(questionStartedAt.toDate())
+        .inMilliseconds;
+    final elapsedSeconds = elapsedMs / 1000;
+    final remainingRatio =
+        (1 - (elapsedSeconds / _questionDurationSeconds)).clamp(0.0, 1.0);
+
+    return 10 + (remainingRatio * 5).floor();
+  }
+
+  void _flagSuspiciousAttempt(
+    Transaction transaction,
+    DocumentReference<Map<String, dynamic>> roomRef, {
+    required String userId,
+    required String reason,
+    Map<String, dynamic> details = const {},
+  }) {
+    transaction.update(roomRef, {
+      'antiCheatFlags': FieldValue.arrayUnion([
+        {
+          'userId': userId,
+          'reason': reason,
+          'details': details,
+          'createdAt': Timestamp.now(),
+        }
+      ]),
+      'lastAntiCheatFlagAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   // Create a private room
   Future<String> createPrivateRoom(
@@ -86,9 +140,56 @@ class GameRepository {
   }
 
   // Set the player as "Ready"
-  Future<void> setPlayerReady(String roomId, int playerNumber) async {
-    await _db.collection('gameRooms').doc(roomId).update({
-      'player$playerNumber.isReady': true,
+  Future<void> setPlayerReady(String roomId, int playerNumber, String userId) async {
+    final roomRef = _db.collection('gameRooms').doc(roomId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(roomRef);
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      if (playerNumber != 1 && playerNumber != 2) {
+        _flagSuspiciousAttempt(transaction, roomRef,
+            userId: userId, reason: 'invalid_ready_player_number');
+        return;
+      }
+
+      final player = data['player$playerNumber'] as Map<String, dynamic>?;
+      if (player == null || player['uid'] != userId) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'ready_identity_mismatch',
+          details: {'submittedPlayerNumber': playerNumber},
+        );
+        return;
+      }
+
+      final playerKey = 'player$playerNumber';
+      transaction.update(roomRef, {'$playerKey.isReady': true});
+    });
+  }
+
+  Future<void> startGame(String roomId) async {
+    final roomRef = _db.collection('gameRooms').doc(roomId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(roomRef);
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      final player1 = data['player1'] as Map<String, dynamic>?;
+      final player2 = data['player2'] as Map<String, dynamic>?;
+
+      if (player1 == null || player2 == null) return;
+      if (player1['isReady'] != true || player2['isReady'] != true) return;
+      if (data['questionStartedAt'] != null) return;
+
+      transaction.update(roomRef, {
+        'status': 'active',
+        'questionStartedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
@@ -113,26 +214,108 @@ class GameRepository {
       final player2 = data['player2'] as Map<String, dynamic>?;
 
       if (player2 == null) return; // Can't progress without both players
+      if (playerNumber != 1 && playerNumber != 2) {
+        _flagSuspiciousAttempt(transaction, roomRef,
+            userId: userId, reason: 'invalid_player_number');
+        return;
+      }
+
+      final expectedUid = playerNumber == 1 ? player1['uid'] : player2['uid'];
+      if (expectedUid != userId) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'player_identity_mismatch',
+          details: {'submittedPlayerNumber': playerNumber},
+        );
+        return;
+      }
 
       final currentP1Answers = List<String>.from(player1['answers'] ?? []);
       final currentP2Answers = List<String>.from(player2['answers'] ?? []);
       
       final currentIdx = data['currentQuestionIndex'] ?? 0;
       final questions = List<dynamic>.from(data['questions'] ?? []);
+      if (currentIdx < 0 || currentIdx >= questions.length) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'question_index_out_of_range',
+          details: {'questionIndex': currentIdx, 'questionCount': questions.length},
+        );
+        return;
+      }
+
+      final question = Map<String, dynamic>.from(questions[currentIdx]);
+      final decodedAnswer = GameUtils.decodeHtmlEntities(answer);
+      final isTimeout = decodedAnswer == 'TIMEOUT';
+      final validAnswers = _validAnswersForQuestion(question);
+      if (!isTimeout && !validAnswers.contains(decodedAnswer)) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'answer_not_in_options',
+          details: {'answer': decodedAnswer, 'questionIndex': currentIdx},
+        );
+        return;
+      }
 
       // 1. Update current player's answers and score
       final updatedAnswers = playerNumber == 1 ? currentP1Answers : currentP2Answers;
       
       // Safety: Don't add more answers than there are questions or if already answered this index
-      if (updatedAnswers.length > currentIdx) return; 
+      if (updatedAnswers.length > currentIdx) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'duplicate_answer_submission',
+          details: {'questionIndex': currentIdx},
+        );
+        return;
+      }
 
-      updatedAnswers.add(answer);
+      final correctAnswer =
+          GameUtils.decodeHtmlEntities(question['correct_answer']?.toString() ?? '');
+      final isCorrect = decodedAnswer == correctAnswer;
+      final questionStartedAt = data['questionStartedAt'] is Timestamp
+          ? data['questionStartedAt'] as Timestamp
+          : null;
+      final verifiedScore = _calculateVerifiedScore(
+        isCorrect: isCorrect,
+        reportedScore: scoreIncrement,
+        questionStartedAt: questionStartedAt,
+      );
+      if (scoreIncrement != verifiedScore) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'score_mismatch',
+          details: {
+            'reportedScore': scoreIncrement,
+            'verifiedScore': verifiedScore,
+            'questionIndex': currentIdx,
+          },
+        );
+      }
+
+      updatedAnswers.add(decodedAnswer);
       final oldScore = (playerNumber == 1 ? player1['score'] : player2['score']) ?? 0;
-      final newScore = oldScore + scoreIncrement;
+      final newScore = oldScore + verifiedScore;
 
       transaction.update(roomRef, {
         '$playerKey.answers': updatedAnswers,
         '$playerKey.score': newScore,
+        '$playerKey.answerMeta.$currentIdx': {
+          'answer': decodedAnswer,
+          'isCorrect': isCorrect,
+          'scoreAwarded': verifiedScore,
+          'submittedAt': Timestamp.now(),
+        },
       });
 
       // 2. Check if we should move to the next question
@@ -141,7 +324,10 @@ class GameRepository {
 
       if (p1Len > currentIdx && p2Len > currentIdx) {
         if (currentIdx + 1 < questions.length) {
-          transaction.update(roomRef, {'currentQuestionIndex': currentIdx + 1});
+          transaction.update(roomRef, {
+            'currentQuestionIndex': currentIdx + 1,
+            'questionStartedAt': FieldValue.serverTimestamp(),
+          });
         } else {
           // Game Finished
           final p1Score = playerNumber == 1 ? newScore : (player1['score'] ?? 0);
@@ -214,24 +400,69 @@ class GameRepository {
       if (!snapshot.exists) return;
 
       final data = snapshot.data() as Map<String, dynamic>;
+      if (data['status'] != 'arena_breaker') {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'arena_breaker_submission_outside_phase',
+          details: {'status': data['status']},
+        );
+        return;
+      }
+
       final question = data['arenaBreakerQuestion'];
       if (question == null) return;
 
-      final isCorrect = answer == question['correct_answer'];
+      final player1 = data['player1'];
+      final player2 = data['player2'];
+      if (userId != player1['uid'] && userId != player2['uid']) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'arena_breaker_non_participant_submission',
+        );
+        return;
+      }
+
+      final questionMap = Map<String, dynamic>.from(question);
+      final decodedAnswer = GameUtils.decodeHtmlEntities(answer);
+      final isTimeout = decodedAnswer == 'TIMEOUT';
+      final validAnswers = _validAnswersForQuestion(questionMap);
+      if (!isTimeout && !validAnswers.contains(decodedAnswer)) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'arena_breaker_answer_not_in_options',
+          details: {'answer': decodedAnswer},
+        );
+        return;
+      }
+
+      final correctAnswer =
+          GameUtils.decodeHtmlEntities(questionMap['correct_answer']?.toString() ?? '');
+      final isCorrect = decodedAnswer == correctAnswer;
       final submissions = Map<String, dynamic>.from(data['arenaBreakerSubmissions'] ?? {});
 
-      if (submissions.containsKey(userId)) return; // Already answered this round
+      if (submissions.containsKey(userId)) {
+        _flagSuspiciousAttempt(
+          transaction,
+          roomRef,
+          userId: userId,
+          reason: 'duplicate_arena_breaker_submission',
+        );
+        return;
+      }
 
       submissions[userId] = {
-        'answer': answer,
+        'answer': decodedAnswer,
         'isCorrect': isCorrect,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
 
       transaction.update(roomRef, {'arenaBreakerSubmissions': submissions});
-
-      final player1 = data['player1'];
-      final player2 = data['player2'];
 
       // Check if both have submitted or if one answered correctly (instant win)
       if (submissions.length == 2) {
